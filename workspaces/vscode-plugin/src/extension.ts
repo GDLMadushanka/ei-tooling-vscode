@@ -16,7 +16,7 @@ Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
 * under the License.
 */
 
-import { commands, ExtensionContext, RelativePattern, TextDocument, Uri, window, workspace } from 'vscode';
+import { commands, ExtensionContext, RelativePattern, StatusBarAlignment, TextDocument, Uri, WebviewViewProvider, window, workspace } from 'vscode';
 import { changeLanguageToSynapse, setLanguageToSynapse } from './language';
 import { launch as launchServer } from './server';
 import { ArchetypeModule } from "./archetype/ArchetypeModule";
@@ -47,10 +47,16 @@ import { SYNAPSE_LANGUAGE_ID, } from './language/languageUtils';
 import * as path from 'path';
 import { Utils } from './utils/Utils';
 import { TerminalModule } from './logging/TerminalModule';
+import { NewIntegrationWizard } from './webviews/NewIntegrationWizard';
+import { GettingStarted } from './webviews/GettingStarted';
+import { SampleWizard } from './webviews/SampleWizard';
+import { get } from 'http';
+import G = require('glob');
 
 export let serverLaunched: boolean = false;
 let fileWatcherCreated: boolean = false;
 const chokidar = require('chokidar');
+var gettingStartedProvider: GettingStarted;
 
 export function activate(context: ExtensionContext) {
 
@@ -133,9 +139,35 @@ export function activate(context: ExtensionContext) {
         }
     }
 
+    const item = window.createStatusBarItem(StatusBarAlignment.Right);
+    item.text = "$(flame) Getting Started"
+    item.command= "ShowGettingStartedPage"
+    item.show()
+
+    const sampleItem = window.createStatusBarItem(StatusBarAlignment.Right);
+    sampleItem.text = "$(symbol-event) Samples"
+    sampleItem.command= "CreateNewSamplePage"
+    sampleItem.show()
+
+    gettingStartedProvider = new GettingStarted(context.extensionPath);
+	context.subscriptions.push(
+	window.registerWebviewViewProvider(GettingStarted.viewType, gettingStartedProvider));
 }
 
 function registerSynapseCommands(context: ExtensionContext) {
+
+    context.subscriptions.push(commands.registerCommand("ShowGettingStartedPage", async () => {
+        gettingStartedProvider.view?.show(true);
+    }));
+
+    context.subscriptions.push(commands.registerCommand("CreateNewIntegrationProject", async () => {
+        NewIntegrationWizard.render(context.extensionPath);
+    }));
+
+    context.subscriptions.push(commands.registerCommand("CreateNewSamplePage", async () => {
+        SampleWizard.render(context.extensionPath);
+    }));
+
     context.subscriptions.push(commands.registerCommand("wso2ei.extension.activate", async () => {
         window.showInformationMessage('Synapse Extension activated!');
     }));
@@ -148,7 +180,7 @@ function registerSynapseCommands(context: ExtensionContext) {
         }));
 
     context.subscriptions.push(commands.registerCommand("wso2ei.project.create", async () => {
-        await ArchetypeModule.createESBProject();
+        //await ArchetypeModule.createESBProject();
     }));
     context.subscriptions.push(commands.registerCommand("wso2ei.project.build", async () => {
         createDeployableArchive();
@@ -229,12 +261,15 @@ function registerSynapseCommands(context: ExtensionContext) {
     }));
     context.subscriptions.push(commands.registerCommand("wso2ei.dataservice.create.project", async () => {
         await createDataServiceProject();
+        await commands.executeCommand('workbench.view.explorer');
     }));
     context.subscriptions.push(commands.registerCommand("wso2ei.dataservice.create.service", async (uri: Uri) => {
         await createNewDataService(uri.fsPath);
+        await commands.executeCommand('workbench.view.explorer');
     }));
     context.subscriptions.push(commands.registerCommand("wso2ei.mediatorproject.create.project", async () => {
         await createMediatorProject();
+        await commands.executeCommand('workbench.view.explorer');
     }));
     context.subscriptions.push(commands.registerCommand("wso2ei.connector.add", async () => {
         await addNewConnectorFromStore();

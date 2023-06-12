@@ -38,21 +38,7 @@ export namespace ArchetypeModule {
     /**
      * Create new ESB Project from esb-project-archetype.
      */
-    export async function createESBProject(): Promise<void> {
-        let artifactID: string | undefined = await showInputBoxForArtifactId();
-        let groupID: string | undefined = await showInputBoxForGroupId();
-
-        // Ensure that artifactID name is valid.
-        while (typeof artifactID !== "undefined" && !Utils.validate(artifactID)) {
-            window.showErrorMessage("Enter valid ArtifactId!!");
-            artifactID = await showInputBoxForArtifactId();
-        }
-
-        // Ensure that groupID name is valid.
-        while (typeof groupID !== "undefined" && !Utils.validateGroupId(groupID)) {
-            window.showErrorMessage("Enter valid GroupId!!");
-            groupID = await showInputBoxForGroupId();
-        }
+    export async function createESBProject(groupID: string, artifactID: string): Promise<void> {
 
         if (typeof artifactID === "undefined" || typeof groupID === "undefined") {
             return;
@@ -74,13 +60,23 @@ export namespace ArchetypeModule {
             };
 
             let newProjectDirectory: string = path.join(targetLocation, artifactID);
-            if(fse.existsSync(newProjectDirectory)){
+            if (fse.existsSync(newProjectDirectory)) {
                 window.showErrorMessage("Project name already exists...!");
                 return;
             }
 
             // Execute command handler that runs maven project generate.
             await executeProjectCreateCommand(newProject, targetLocation);
+            const folderPathParsed = targetLocation.split('\\').join('/');
+            // Updated Uri.parse to Uri.file
+            const folderUri = Uri.file(folderPathParsed);
+            if (!workspace.workspaceFolders) {
+                // If no workspace is open, open new project in this window
+                commands.executeCommand('vscode.openFolder', folderUri, false);
+            } else {
+                // open in a new window
+                commands.executeCommand('vscode.openFolder', folderUri, true);
+            }
         }
     }
 
